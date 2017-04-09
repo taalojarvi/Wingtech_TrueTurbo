@@ -47,9 +47,10 @@
 /* Redmi 2 */
 #define SWEEP_Y_MAX             1280
 #define SWEEP_X_MAX             720
-#define SWEEP_EDGE		65
+#define SWEEP_EDGE		90
 #define SWEEP_Y_LIMIT           SWEEP_Y_MAX-SWEEP_EDGE
 #define SWEEP_X_LIMIT           SWEEP_X_MAX-SWEEP_EDGE
+<<<<<<< HEAD
 #define SWEEP_X_B1              216
 #define SWEEP_X_B2              480
 #define SWEEP_Y_START		533
@@ -60,6 +61,10 @@
 #define SWEEP_X_LIMIT_ATMEL     1024-SWEEP_EDGE
 #define SWEEP_X_B1              399
 #define SWEEP_X_B2              720
+=======
+#define SWEEP_X_B1              299
+#define SWEEP_X_B2              620
+>>>>>>> parent of 58494f5... wake gestures:set proper tuneables for wt88047
 #define SWEEP_Y_START		800
 #define SWEEP_X_START		540
 #define SWEEP_X_FINAL           270
