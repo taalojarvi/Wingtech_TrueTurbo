@@ -646,88 +646,6 @@ static int mi2s_rx_bit_format_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef CONFIG_MACH_WT88047
-static void msm8x16_ext_spk_control(u32 enable)
-{
-	if (enable) {
-		gpio_direction_output(EXT_SPK_AMP_GPIO, enable);
-		usleep_range(EXT_CLASS_D_EN_DELAY,
-				EXT_CLASS_D_EN_DELAY + EXT_CLASS_D_DELAY_DELTA);
-	} else {
-		gpio_direction_output(EXT_SPK_AMP_GPIO, enable);
-		usleep_range(EXT_CLASS_D_DIS_DELAY,
-				EXT_CLASS_D_DIS_DELAY + EXT_CLASS_D_DELAY_DELTA);
-	}
-
-	pr_debug("%s: %s external speaker PAs.\n", __func__,
-			enable ? "Enable" : "Disable");
-}
-
-static void msm8x16_ext_spk_delayed_enable(struct work_struct *work)
-{
-	int i = 0;
-
-	gpio_direction_output(EXT_SPK_AMP_HEADSET_GPIO, false);
-	usleep_range(EXT_CLASS_D_EN_DELAY,
-			EXT_CLASS_D_EN_DELAY + EXT_CLASS_D_DELAY_DELTA);
-
-	for (i = 0; i < AW8155A_MODE; i++) {
-		gpio_direction_output(EXT_SPK_AMP_GPIO, false);
-		gpio_direction_output(EXT_SPK_AMP_GPIO, true);
-	}
-
-	usleep_range(EXT_CLASS_D_EN_DELAY,
-			EXT_CLASS_D_EN_DELAY + EXT_CLASS_D_DELAY_DELTA);
-}
-
-static void msm8x16_ext_spk_delayed_dualmode(struct work_struct *work)
-{
-	int i = 0;
-
-	gpio_direction_output(EXT_SPK_AMP_HEADSET_GPIO, true);
-	usleep_range(EXT_CLASS_D_EN_DELAY,
-			EXT_CLASS_D_EN_DELAY + EXT_CLASS_D_DELAY_DELTA);
-
-	for (i = 0; i < AW8155A_MODE; i++) {
-		gpio_direction_output(EXT_SPK_AMP_GPIO, false);
-		gpio_direction_output(EXT_SPK_AMP_GPIO, true);
-	}
-
-	usleep_range(EXT_CLASS_D_EN_DELAY,
-			EXT_CLASS_D_EN_DELAY + EXT_CLASS_D_DELAY_DELTA);
-}
-
-static int lineout_status_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	return 0;
-}
-
-static int lineout_status_put(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	int state = 0;
-	state = ucontrol->value.integer.value[0];
-
-	switch (state) {
-	case 1:
-		schedule_delayed_work(&lineout_amp_enable, msecs_to_jiffies(50));
-		break;
-	case 0:
-		msm8x16_ext_spk_control(0);
-		break;
-	case 2:
-		schedule_delayed_work(&lineout_amp_dualmode, msecs_to_jiffies(50));
-		break;
-	default:
-		pr_err("%s: Unexpected input value\n", __func__);
-		break;
-	}
-
-	return 0;
-}
-#endif
-
 static int loopback_mclk_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -1386,12 +1304,6 @@ static const struct soc_enum msm_snd_enum[] = {
 #ifdef CONFIG_MACH_WT88047
 	SOC_ENUM_SINGLE_EXT(5, lineout_text),
 #endif
-	SOC_ENUM_SINGLE_EXT(6, pri_rx_sample_rate_text),
-	SOC_ENUM_SINGLE_EXT(2, mi2s_rx_sample_rate_text),
-#ifdef CONFIG_MACH_T86519A1
-	SOC_ENUM_SINGLE_EXT(2, quatmi2s_clk_text),
-#endif
-	SOC_ENUM_SINGLE_EXT(6, mi2s_tx_sample_rate_text),
 };
 
 static const char *const btsco_rate_text[] = {"BTSCO_RATE_8KHZ",
@@ -1411,10 +1323,6 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			loopback_mclk_get, loopback_mclk_put),
 	SOC_ENUM_EXT("Internal BTSCO SampleRate", msm_btsco_enum[0],
 		     msm_btsco_rate_get, msm_btsco_rate_put),
-#ifdef CONFIG_MACH_WT88047
-	SOC_ENUM_EXT("Lineout_1 amp", msm_snd_enum[3],
-			lineout_status_get, lineout_status_put),
-#endif
 	SOC_ENUM_EXT("RX SampleRate", msm_snd_enum[3],
 			pri_rx_sample_rate_get, pri_rx_sample_rate_put),
 	SOC_ENUM_EXT("MI2S TX SampleRate", msm_snd_enum[4],
@@ -1423,10 +1331,6 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 	SOC_ENUM_EXT("Lineout_1 amp", msm_snd_enum[5],
 			lineout_status_get, lineout_status_put),
 #endif
-	SOC_ENUM_EXT("MI2S_RX SampleRate", msm_snd_enum[3],
-			mi2s_rx_sample_rate_get, mi2s_rx_sample_rate_put),
-	SOC_ENUM_EXT("MI2S TX SampleRate", msm_snd_enum[4],
-			mi2s_tx_sample_rate_get, mi2s_tx_sample_rate_put),
 };
 
 static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
@@ -1928,11 +1832,6 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	}
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8x16_wcd_cal)->X) = (Y))
-#ifdef CONFIG_MACH_CP8675
-	S(v_hs_max, 2550);
-#elif defined CONFIG_MACH_WT88047
-	S(v_hs_max, 1700);
-#else
 	S(v_hs_max, 1500);
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8x16_wcd_cal)->X) = (Y))
@@ -1967,39 +1866,6 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	btn_high[3] = 450;
 	btn_low[4] = 500;
 	btn_high[4] = 500;
-#ifdef CONFIG_MACH_JALEBI
-	btn_low[0] = 0;
-	btn_high[0] = 150;
-	btn_low[1] = 150;
-	btn_high[1] = 150;
-	btn_low[2] = 150;
-	btn_high[2] = 150;
-	btn_low[3] = 150;
-	btn_high[3] = 150;
-	btn_low[4] = 150;
-	btn_high[4] = 150;
-#elif defined CONFIG_MACH_WT88047
-	btn_low[0] = 25;
-	btn_high[0] = 75;
-	btn_low[1] = 200;
-	btn_high[1] = 225;
-	btn_low[2] = 325;
-	btn_high[2] = 400;
-	btn_low[3] = 375;
-	btn_high[3] = 410;
-	btn_low[4] = 430;
-	btn_high[4] = 450;
-#elif defined(CONFIG_MACH_CP8675)
-	btn_low[0] = 50;
-	btn_high[0] = 50;
-	btn_low[1] = 87;
-	btn_high[1] = 87;
-	btn_low[2] = 75;
-	btn_high[2] = 75;
-	btn_low[3] = 112;
-	btn_high[3] = 112;
-	btn_low[4] = 137;
-	btn_high[4] = 137;
 #else
 	btn_low[0] = 75;
 	btn_high[0] = 75;
@@ -2062,6 +1928,8 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 #ifdef CONFIG_MACH_WT88047
+	msm8x16_ext_spk_gpio_request();
+
 	INIT_DELAYED_WORK(&lineout_amp_enable, msm8x16_ext_spk_delayed_enable);
 	INIT_DELAYED_WORK(&lineout_amp_dualmode, msm8x16_ext_spk_delayed_dualmode);
 #endif
@@ -3400,11 +3268,7 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 	if (!pdata) {
 		dev_err(&pdev->dev, "Can't allocate msm8x16_asoc_mach_data\n");
 		ret = -ENOMEM;
-#ifdef CONFIG_MACH_WT88047
-		goto err;
-#else
 		goto err1;
-#endif
 	}
 
 	pdata->vaddr_gpio_mux_spkr_ctl =
@@ -3637,9 +3501,7 @@ err:
 	if (pdata->vaddr_gpio_mux_pcm_ctl)
 		iounmap(pdata->vaddr_gpio_mux_pcm_ctl);
 	devm_kfree(&pdev->dev, pdata);
-#ifndef CONFIG_MACH_WT88047
 err1:
-#endif
 	return ret;
 }
 
@@ -3654,6 +3516,9 @@ static int msm8x16_asoc_machine_remove(struct platform_device *pdev)
 		iounmap(pdata->vaddr_gpio_mux_mic_ctl);
 	if (pdata->vaddr_gpio_mux_pcm_ctl)
 		iounmap(pdata->vaddr_gpio_mux_pcm_ctl);
+#ifdef CONFIG_MACH_WT88047
+	msm8x16_ext_spk_gpio_free();
+#endif
 	snd_soc_unregister_card(card);
 	mutex_destroy(&pdata->cdc_mclk_mutex);
 	return 0;
